@@ -1,0 +1,51 @@
+name: Staging Deployment
+
+on:
+  workflow_call:
+    inputs:
+      artifact-name:
+        required: true
+        type: string
+      deployment-dir:
+        required: true
+        type: string
+
+jobs:
+  deploy-to-staging:
+    runs-on: [self-hosted, staging]  # Use labels to target staging servers
+    strategy:
+      matrix:
+        server: [13.202.81.29, 13.200.138.241]
+    
+    steps:
+      - name: Checkout (not needed for artifact download, but useful for scripts)
+        uses: actions/checkout@v3
+
+      - name: Download artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ inputs.artifact-name }}
+          path: ./artifact
+
+      - name: Verify artifact
+        run: |
+          echo "Artifact contents:"
+          ls -la ./artifact/
+          JAR_FILE=$(find ./artifact -name "*.jar" | head -n 1)
+          echo "JAR file found: $JAR_FILE"
+
+      - name: Create deployment directory
+        run: mkdir -p ${{ inputs.deployment-dir }}
+
+      - name: Deploy application
+        run: |
+          JAR_FILE=$(find ./artifact -name "*.jar" | head -n 1)
+          echo "Deploying to server: ${{ matrix.server }}"
+          mv "$JAR_FILE" ${{ inputs.deployment-dir }}/app.jar
+          echo "Deployment completed at $(date)"
+
+      - name: Verify deployment
+        run: |
+          echo "Deployment verification on ${{ matrix.server }}:"
+          ls -la ${{ inputs.deployment-dir }}/
+          java -version
