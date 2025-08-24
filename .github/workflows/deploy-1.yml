@@ -55,25 +55,25 @@ jobs:
           cd ~/apps/helloworld
           java -jar app.jar
 
-deploy:
-  runs-on: self-hosted
-  needs: build
+  deploy:
+    runs-on: self-hosted
+    needs: build
 
-  steps:
-    - name: Download artifact
-      uses: actions/download-artifact@v4
-      with:
-        name: java-helloworld-jar
-        path: ./artifact
+    steps:
+      - name: Download artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: java-helloworld-jar
+          path: ./artifact
 
-    - name: Move to deployment directory
-      run: |
-        mkdir -p ~/apps/helloworld
-        JAR_FILE=$(ls ./artifact/*.jar | head -n 1)
-        mv "$JAR_FILE" ~/apps/helloworld/app.jar
+      - name: Move to deployment directory
+        run: |
+          mkdir -p ~/apps/helloworld
+          AR_FILE=$(ls ./artifact/*.jar | head -n 1)
+          mv "$JAR_FILE" ~/apps/helloworld/app.jar
 
-    - name: Run the app (test run)
-      run: |
-        cd ~/apps/helloworld
-        java -jar app.jar
+      - name: Run the app (test run)
+        run: |
+          cd ~/apps/helloworld
+          java -jar app.jar
     
