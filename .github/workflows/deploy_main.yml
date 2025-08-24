@@ -1,4 +1,4 @@
-name: Build and Deploy main
+name: Build and Deploy Main
 
 on:
   workflow_dispatch:
@@ -24,6 +24,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       artifact-name: ${{ steps.set-artifact.outputs.name }}
+      deployment-dir: ${{ env.DEPLOYMENT_DIR }}
 
     steps:
       - name: Checkout code
@@ -62,7 +63,7 @@ jobs:
     uses: ./.github/workflows/deploy-staging.yml
     with:
       artifact-name: ${{ needs.build.outputs.artifact-name }}
-      deployment-dir: ${{ env.DEPLOYMENT_DIR }}
+      deployment-dir: ${{ needs.build.outputs.deployment-dir }}
     secrets: inherit
 
   call-production-deploy:
@@ -71,7 +72,7 @@ jobs:
     uses: ./.github/workflows/deploy-production.yml
     with:
       artifact-name: ${{ needs.build.outputs.artifact-name }}
-      deployment-dir: ${{ env.DEPLOYMENT_DIR }}
+      deployment-dir: ${{ needs.build.outputs.deployment-dir }}
       version: ${{ github.event.inputs.version }}
     secrets: inherit
 
@@ -88,3 +89,4 @@ jobs:
           echo "Deployment completed for environment: ${{ github.event.inputs.environment }}"
           echo "Build ID: ${{ github.run_id }}"
           echo "Version: ${{ github.event.inputs.version || 'latest' }}"
+          echo "Deployment directory: ${{ env.DEPLOYMENT_DIR }}"
