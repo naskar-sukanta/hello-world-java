@@ -5,5 +5,6 @@ public class HelloWorld {
     public static void main(String[] args) {
         System.out.println("Hello, World from GitHub Actions!");
         System.out.println("Deployed to self-hosted Linux server!");
+        System.out.println("Current time: " + new java.util.Date());
     }
 }

@@ -1,5 +1,5 @@
-# .github/workflows/deploy.yml
-name: Build and Deploy Java Application
+# .github/workflows/self-hosted-deploy.yml
+name: Build and Deploy on Self-Hosted Runner
 
 on:
   push:
@@ -7,8 +7,8 @@ on:
   workflow_dispatch:
 
 jobs:
-  build:
-    runs-on: ubuntu-latest
+  build-and-deploy:
+    runs-on: self-hosted  # This is the key change!
     
     steps:
     - name: Checkout code
@@ -19,75 +19,57 @@ jobs:
       with:
         java-version: '11'
         distribution: 'temurin'
+        cache: 'maven'
     
     - name: Build with Maven
-      run: mvn compile
+      run: mvn clean compile assembly:single
     
-    - name: Package application
+    - name: Create application directory
       run: |
-        mkdir -p target/package
-        javac -d target/package src/main/java/com/example/HelloWorld.java
-        echo '#!/bin/bash' > target/package/run.sh
-        echo 'java -cp . com.example.HelloWorld' >> target/package/run.sh
-        chmod +x target/package/run.sh
+        sudo mkdir -p /opt/hello-world-java
+        sudo chown $USER:$USER /opt/hello-world-java
     
-    - name: Create deployment artifact
+    - name: Deploy application
       run: |
-        tar -czf hello-world.tar.gz -C target/package .
-    
-    - name: Upload artifact
-      uses: actions/upload-artifact@v3
-      with:
-        name: hello-world-app
-        path: hello-world.tar.gz
-
-  deploy:
-    runs-on: ubuntu-latest
-    needs: build
-    if: success()
-    
-    steps:
-    - name: Download artifact
-      uses: actions/download-artifact@v3
-      with:
-        name: hello-world-app
-    
-    - name: Setup SSH
-      uses: webfactory/ssh-agent@v0.8.0
-      with:
-        ssh-private-key: ${{ secrets.DEPLOY_SSH_KEY }}
-    
-    - name: Deploy to server
-      run: |
-        # Copy artifact to server
-        scp -o StrictHostKeyChecking=no hello-world.tar.gz \
-          ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:/tmp/
+        # Copy built jar to deployment location
+        cp target/hello-world-1.0.0-jar-with-dependencies.jar /opt/hello-world-java/
         
-        # SSH and deploy
-        ssh -o StrictHostKeyChecking=no \
-          ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }} << 'EOF'
-          # Stop existing application (if any)
-          pkill -f "java.*HelloWorld" || true
-          
-          # Extract and deploy new version
-          tar -xzf /tmp/hello-world.tar.gz -C /opt/hello-world-java
-          rm /tmp/hello-world.tar.gz
-          
-          # Make script executable
-          chmod +x /opt/hello-world-java/run.sh
-          
-          # Start application in background
-          cd /opt/hello-world-java
-          nohup ./run.sh > app.log 2>&1 &
-          
-          # Wait a bit and check if running
-          sleep 2
-          if pgrep -f "java.*HelloWorld" > /dev/null; then
+        # Create run script
+        cat > /opt/hello-world-java/run.sh << 'EOF'
+        #!/bin/bash
+        cd $(dirname "$0")
+        java -jar hello-world-1.0.0-jar-with-dependencies.jar
+        EOF
+        
+        chmod +x /opt/hello-world-java/run.sh
+    
+    - name: Stop previous instance
+      run: |
+        pkill -f "java.*hello-world" || true
+        sleep 2
+    
+    - name: Start application
+      run: |
+        cd /opt/hello-world-java
+        nohup ./run.sh > app.log 2>&1 &
+        sleep 3
+        
+        # Verify application is running
+        if pgrep -f "java.*hello-world" > /dev/null; then
             echo "Application deployed successfully!"
             echo "Log output:"
             tail -n 5 app.log
-          else
+        else
             echo "Application failed to start!"
+            echo "Checking logs:"
+            cat app.log
             exit 1
-          fi
-        EOF
+        fi
+    
+    - name: Show application status
+      run: |
+        echo "Current Java processes:"
+        ps aux | grep -i java | grep -v grep || echo "No Java processes found"
+        
+        echo "Application directory contents:"
+        ls -la /opt/hello-world-java/
