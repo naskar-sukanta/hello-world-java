@@ -1,7 +1,6 @@
 name: Build and Deploy Java App with Maven
 
 on:
-
   workflow_dispatch:
 
 jobs:
@@ -49,11 +48,11 @@ jobs:
       - name: Move to deployment directory
         run: |
           mkdir -p ~/apps/helloworld
-          AR_FILE=$(ls ./artifact/*.jar | head -n 1)
+          JAR_FILE=$(ls ./artifact/*.jar | head -n 1)
+          echo "Found JAR file: $JAR_FILE"
           mv "$JAR_FILE" ~/apps/helloworld/app.jar
 
       - name: Run the app (test run)
         run: |
           cd ~/apps/helloworld
           java -jar app.jar
-    
