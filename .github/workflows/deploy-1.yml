@@ -34,27 +34,7 @@ jobs:
         with:
           name: java-helloworld-jar
           path: target/*.jar
-
-  deploy:
-    runs-on: self-hosted
-    needs: build
-
-    steps:
-      - name: Download artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: java-helloworld-jar
-
-      - name: Move to deployment directory
-        run: |
-          mkdir -p ~/apps/helloworld
-          mv *.jar ~/apps/helloworld/app.jar
-
-      - name: Run the app (test run)
-        run: |
-          cd ~/apps/helloworld
-          java -jar app.jar
-
+  
   deploy:
     runs-on: self-hosted
     needs: build
