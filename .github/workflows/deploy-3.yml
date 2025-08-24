@@ -53,7 +53,7 @@ jobs:
     
     strategy:
       matrix:
-        server: [13.203.28.27, 13.200.138.241]  # Replace with your actual server labels or IPs
+        server: [13.202.81.29, 13.200.138.241]  # Replace with your actual server labels or IPs
     
     steps:
       - name: Download artifact
@@ -87,7 +87,7 @@ jobs:
     
     strategy:
       matrix:
-        server: [prod-server1, prod-server2]  # Replace with your production server labels
+        server: [13.202.81.29, 13.200.138.241]  # Replace with your production server labels
     
     steps:
       - name: Download artifact
