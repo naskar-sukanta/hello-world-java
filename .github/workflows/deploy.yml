@@ -1,0 +1,93 @@
+# .github/workflows/deploy.yml
+name: Build and Deploy Java Application
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Set up JDK 11
+      uses: actions/setup-java@v3
+      with:
+        java-version: '11'
+        distribution: 'temurin'
+    
+    - name: Build with Maven
+      run: mvn compile
+    
+    - name: Package application
+      run: |
+        mkdir -p target/package
+        javac -d target/package src/main/java/com/example/HelloWorld.java
+        echo '#!/bin/bash' > target/package/run.sh
+        echo 'java -cp . com.example.HelloWorld' >> target/package/run.sh
+        chmod +x target/package/run.sh
+    
+    - name: Create deployment artifact
+      run: |
+        tar -czf hello-world.tar.gz -C target/package .
+    
+    - name: Upload artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: hello-world-app
+        path: hello-world.tar.gz
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build
+    if: success()
+    
+    steps:
+    - name: Download artifact
+      uses: actions/download-artifact@v3
+      with:
+        name: hello-world-app
+    
+    - name: Setup SSH
+      uses: webfactory/ssh-agent@v0.8.0
+      with:
+        ssh-private-key: ${{ secrets.DEPLOY_SSH_KEY }}
+    
+    - name: Deploy to server
+      run: |
+        # Copy artifact to server
+        scp -o StrictHostKeyChecking=no hello-world.tar.gz \
+          ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:/tmp/
+        
+        # SSH and deploy
+        ssh -o StrictHostKeyChecking=no \
+          ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }} << 'EOF'
+          # Stop existing application (if any)
+          pkill -f "java.*HelloWorld" || true
+          
+          # Extract and deploy new version
+          tar -xzf /tmp/hello-world.tar.gz -C /opt/hello-world-java
+          rm /tmp/hello-world.tar.gz
+          
+          # Make script executable
+          chmod +x /opt/hello-world-java/run.sh
+          
+          # Start application in background
+          cd /opt/hello-world-java
+          nohup ./run.sh > app.log 2>&1 &
+          
+          # Wait a bit and check if running
+          sleep 2
+          if pgrep -f "java.*HelloWorld" > /dev/null; then
+            echo "Application deployed successfully!"
+            echo "Log output:"
+            tail -n 5 app.log
+          else
+            echo "Application failed to start!"
+            exit 1
+          fi
+        EOF
