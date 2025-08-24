@@ -2,8 +2,8 @@
 name: Build and Deploy on Self-Hosted Runner
 
 on:
-  push:
-    branches: [ main ]
+  # push:
+  #   branches: [ main ]
   workflow_dispatch:
 
 jobs:
